@@ -1,0 +1,41 @@
+{
+    "name": "Shubham kumar",
+    "email": "skgiri569@gmail.com",
+    "phone": "1234567890",
+    "linkedin": "https://www.linkedin.com/in/shubham-kumar-123456789/",
+    "github": "https://github.com/imshubhamgiri",
+    "skills": [
+        "Python",
+        "JavaScript",
+        "SQL",
+        "React",
+        "Node.js",
+        "Machine Learning",
+        "Data Analysis"
+    ],
+    "summary": "Aspiring software engineer with a strong foundation in computer science and hands-on experience in web development, machine learning, and data analysis. Proficient in Python, JavaScript, and SQL, with a passion for building scalable applications and solving complex problems. Eager to contribute to innovative projects and grow as a developer.",
+    "projects": [],
+    "education": [
+        {
+            "degree": "Bachelor of Technology in Computer Science and Engineering",
+            "institution": "XYZ University",
+            "startYear": 2020,
+            "endYear": 2024,
+            "grade": "8.5 CGPA"
+        },
+        {
+            "degree": "High School Diploma",
+            "institution": "ABC High School",
+            "startYear": 2018,
+            "endYear": 2020,
+            "grade": "90%"
+        },
+        {
+            "degree": "Secondary School Certificate",
+            "institution": "DEF Secondary School",
+            "startYear": 2016,
+            "endYear": 2018,
+            "grade": "85%"
+        }
+    ]
+}
