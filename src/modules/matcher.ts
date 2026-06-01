@@ -8,10 +8,11 @@ function scoreJob(job: Job, resume: Resume, config: Config): MatchResult {
   const jobText = `${job.title} ${job.description}`.toLowerCase();
   let score = 0;
   const matchedSkills: string[] = [];
+  const uniqueMatches = new Set<string>();
 
   // ── Instant disqualify check ────────────────────────────────
   for (const term of config.blacklistTerms) {
-    if (jobText.includes(term.toLowerCase())) {
+    if (jobText.toLowerCase().includes(term.toLowerCase())) {
       return {
         job,
         score: 0,
@@ -24,9 +25,11 @@ function scoreJob(job: Job, resume: Resume, config: Config): MatchResult {
 
   // ── Skill match (heaviest weight) ───────────────────────────
   for (const skill of resume.skills) {
-    if (jobText.includes(skill.toLowerCase())) {
+    const lowerSkill = skill.toLowerCase();
+    if (jobText.includes(lowerSkill) && !uniqueMatches.has(lowerSkill)) {
       score += 10;
       matchedSkills.push(skill);
+      uniqueMatches.add(lowerSkill);
     }
   }
 
@@ -40,14 +43,18 @@ function scoreJob(job: Job, resume: Resume, config: Config): MatchResult {
 
   // ── Required skills from config ──────────────────────────────
   for (const skill of config.requiredSkills) {
-    if (jobText.includes(skill.toLowerCase()) && !matchedSkills.includes(skill)) {
+    const lowerSkill = skill.toLowerCase();
+    if (jobText.includes(lowerSkill) && 
+    !uniqueMatches.has(lowerSkill)) {
       score += 8;
       matchedSkills.push(skill);
+      uniqueMatches.add(lowerSkill);
     }
   }
 
   // ── Project tech stack match ─────────────────────────────────
   for (const project of resume.projects) {
+    if(!project.techStack || project.techStack.length === 0) continue;
     for (const tech of project.techStack) {
       if (jobText.includes(tech.toLowerCase())) {
         score += 3;
