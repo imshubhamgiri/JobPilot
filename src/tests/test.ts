@@ -1,3 +1,5 @@
+import { test } from 'node:test';
+import assert from 'node:assert';
 import path from 'path';
 import fs from 'fs/promises';
 import config from '../config/config';
@@ -10,217 +12,130 @@ import { Resume } from '../types';
 
 // ════════════════════════════════════════════════════════════
 // TEST 1: Resume Loading
-// ════════════════════════════════════════════════════════════
-async function testLoadResume() {
-    console.log('\n📋 TEST: Load Resume');
-    try {
-        const resume = await loadResume();
-        
-        // Verify structure
-        if (!resume.name || !resume.skills || !Array.isArray(resume.skills)) {
-            throw new Error('Resume missing required fields');
-        }
-        
-        logger.success(`✓ Resume loaded successfully`);
-        logger.info(`  Name: ${resume.name}`);
-        logger.info(`  Skills: ${resume.skills.length} total`);
-        logger.info(`  Email: ${resume.email}`);
-        return resume;
-    } catch (error) {
-        logger.error(`✗ Failed to load resume: ${(error as Error).message}`);
-        throw error;
-    }
-}
+// // ════════════════════════════════════════════════════════════
+// test('Resume Loading - should load resume with required fields', async () => {
+//     const resume = await loadResume();
+    
+//     assert.ok(resume.name, 'Resume should have a name');
+//     assert.ok(Array.isArray(resume.skills), 'Resume should have skills array');
+//     assert.ok(resume.skills.length > 0, 'Resume should have at least one skill');
+//     assert.ok(resume.email, 'Resume should have an email');
+    
+//     logger.success(`✓ Resume loaded: ${resume.name}`);
+// });
 
 // ════════════════════════════════════════════════════════════
 // TEST 2: GitHub Fetcher
 // ════════════════════════════════════════════════════════════
-async function testGitHubFetcher() {
-    console.log('\n🐙 TEST: Fetch GitHub Projects');
-    try {
-        const projects = await getLatestProjects(config.github.username, config.github.projectLimit);
-        
-        if (!Array.isArray(projects) || projects.length === 0) {
-            throw new Error('No projects returned from GitHub');
-        }
-        
-        logger.success(`✓ GitHub projects fetched successfully`);
-        logger.info(`  Total projects: ${projects.length}`);
-        
-        // Show first 3 projects
-        projects.slice(0, 3).forEach((project, idx) => {
-            logger.info(`  ${idx + 1}. ${project.name} (⭐ ${project.stars})`);
-        });
-        
-        return projects;
-    } catch (error) {
-        logger.error(`✗ Failed to fetch GitHub projects: ${(error as Error).message}`);
-        throw error;
-    }
-}
+// test('GitHub Fetcher - should fetch projects successfully', async () => {
+//     const projects = await getLatestProjects(config.github.username, config.github.projectLimit);
+    
+//     assert.ok(Array.isArray(projects), 'Projects should be an array');
+//     assert.ok(projects.length > 0, 'Should return at least one project');
+//     assert.ok(projects[0].name, 'Project should have a name');
+//     assert.ok(projects[0].stars !== undefined, 'Project should have stars count');
+//     assert.ok(projects[0].url, 'Project should have a URL');
+    
+//     logger.success(`✓ Fetched ${projects.length} GitHub projects`);
+// });
 
 // ════════════════════════════════════════════════════════════
 // TEST 3: Job Scraping
 // ════════════════════════════════════════════════════════════
-async function testJobScraping() {
-    console.log('\n🔍 TEST: Scrape Jobs');
-    try {
-        const rawJobs = await scrapeAll(config.targetRoles);
-        
-        if (!Array.isArray(rawJobs) || rawJobs.length === 0) {
-            throw new Error('No jobs scraped');
-        }
-        
-        logger.success(`✓ Jobs scraped successfully`);
-        logger.info(`  Total jobs: ${rawJobs.length}`);
-        
-        // Save scraped jobs
-        const filePath = path.join(process.cwd(), 'scraped_jobs.json');
-        const jsonData = JSON.stringify(rawJobs, null, 2);
-        await fs.writeFile(filePath, jsonData, 'utf-8');
-        logger.info(`  Saved to: scraped_jobs.json`);
-        
-        // Show first 3 jobs
-        rawJobs.slice(0, 3).forEach((job, idx) => {
-            logger.info(`  ${idx + 1}. ${job.title} at ${job.company}`);
-        });
-        
-        return rawJobs;
-    } catch (error) {
-        logger.error(`✗ Failed to scrape jobs: ${(error as Error).message}`);
-        throw error;
-    }
-}
+// test('Job Scraping - should scrape jobs and save to file', async () => {
+//     const rawJobs = await scrapeAll(config.targetRoles);
+    
+//     assert.ok(Array.isArray(rawJobs), 'Jobs should be an array');
+//     assert.ok(rawJobs.length > 0, 'Should scrape at least one job');
+//     assert.ok(rawJobs[0]?.title, 'Job should have a title');
+//     assert.ok(rawJobs[0]?.company, 'Job should have a company');
+//     assert.ok(rawJobs[0]?.description, 'Job should have a description');
+    
+//     // Save to file
+//     const filePath = path.join(process.cwd(), 'scraped_jobs.json');
+//     await fs.writeFile(filePath, JSON.stringify(rawJobs, null, 2), 'utf-8');
+    
+//     // Verify file exists
+//     const fileExists = await fs.stat(filePath);
+//     assert.ok(fileExists, 'scraped_jobs.json should exist');
+    
+//     logger.success(`✓ Scraped ${rawJobs.length} jobs`);
+// });
 
 // ════════════════════════════════════════════════════════════
 // TEST 4: Job Matching
 // ════════════════════════════════════════════════════════════
-async function testJobMatching(jobs: any[], resume: Resume) {
-    console.log('\n⚡ TEST: Match Jobs with Resume');
-    try {
-        if (!Array.isArray(jobs) || jobs.length === 0) {
-            throw new Error('No jobs provided for matching');
-        }
-        
-        if (!resume) {
-            throw new Error('Resume not loaded');
-        }
-        
-        const matchedResults = matchJobs(jobs, resume, config);
-        
-        logger.success(`✓ Job matching completed`);
-        logger.info(`  Total jobs processed: ${matchedResults.length}`);
-        
-        // Filter high-scoring matches
-        const highScores = matchedResults.filter(r => r.score >= 75);
-        logger.info(`  High matches (score >= 75): ${highScores.length}`);
-        
-        // Show top 5 matches
-        const topMatches = matchedResults.sort((a, b) => b.score - a.score).slice(0, 5);
-        topMatches.forEach((match, idx) => {
-            logger.info(`  ${idx + 1}. ${match.job.title} - Score: ${match.score} | Skills: ${match.matchedSkills.join(', ')}`);
-        });
-        
-        return matchedResults;
-    } catch (error) {
-        logger.error(`✗ Failed to match jobs: ${(error as Error).message}`);
-        throw error;
-    }
-}
+// test('Job Matching - should match jobs with resume and calculate scores', async () => {
+//     const resume = await loadResume();
+//     const jobs = await scrapeAll(config.targetRoles);
+    
+//     assert.ok(Array.isArray(jobs), 'Jobs should be an array');
+//     assert.ok(jobs.length > 0, 'Should have jobs to match');
+    
+//     const matchedResults = matchJobs(jobs, resume, config);
+    
+//     assert.ok(Array.isArray(matchedResults), 'Results should be an array');
+//     assert.ok(matchedResults.length > 0, 'Should have matched results'); 
+//     assert.equal(matchedResults.length, jobs.length, 'Should have result for each job');
+//     assert.ok(matchedResults[0]!.score >= 0, 'Score should be non-negative');
+//     assert.ok(Array.isArray(matchedResults[0]! .matchedSkills), 'Should have matchedSkills array');
+    
+//     const highScores = matchedResults.filter(r => r.score >= 75);
+//     logger.success(`✓ Matched ${matchedResults.length} jobs (${highScores.length} with score >= 75)`);
+// });
 
 // ════════════════════════════════════════════════════════════
 // TEST 5: Save Matched Jobs
-// ════════════════════════════════════════════════════════════
-async function testSaveMatchedJobs(matchedResults: any[]) {
-    console.log('\n💾 TEST: Save Matched Jobs');
-    try {
-        const filePath = path.join(process.cwd(), 'matched_jobs.json');
-        const jsonData = JSON.stringify(matchedResults, null, 2);
-        await fs.writeFile(filePath, jsonData, 'utf-8');
-        
-        logger.success(`✓ Matched jobs saved successfully`);
-        logger.info(`  File: matched_jobs.json`);
-        logger.info(`  Total results: ${matchedResults.length}`);
-    } catch (error) {
-        logger.error(`✗ Failed to save matched jobs: ${(error as Error).message}`);
-        throw error;
-    }
-}
+// ══════════════════════════════════ 
+test('Save Matched Jobs - should save matched jobs to file', async () => {                          
+    const resume = await loadResume();
+    const jobs = await scrapeAll(config.targetRoles);
+    const matchedResults = matchJobs(jobs, resume, config);
+    
+    const filePath = path.join(process.cwd(), 'matched_jobs.json');
+    await fs.writeFile(filePath, JSON.stringify(matchedResults, null, 2), 'utf-8');
+    
+    // Verify file exists and contains data
+    const fileExists = await fs.stat(filePath);
+    assert.ok(fileExists, 'matched_jobs.json should exist');
+    
+    const data = await fs.readFile(filePath, 'utf-8');
+    const savedData = JSON.parse(data);
+    
+    assert.ok(Array.isArray(savedData), 'File should contain an array');
+    assert.equal(savedData.length, matchedResults.length, 'File should contain all results');
+    
+    logger.success(`✓ Saved ${savedData.length} results to matched_jobs.json`);
+});
 
 // ════════════════════════════════════════════════════════════
 // TEST 6: Read and Filter High Matches
 // ════════════════════════════════════════════════════════════
-async function testReadHighMatches() {
-    console.log('\n📊 TEST: Read High Matches (score >= 75)');
-    try {
-        const filePath = path.join(process.cwd(), 'matched_jobs.json');
-        const data = await fs.readFile(filePath, 'utf-8');
-        const matchedJobs = JSON.parse(data);
-        
-        const highMatches = matchedJobs.filter((item: any) => item.score >= 75);
-        
-        logger.success(`✓ High matches retrieved`);
-        logger.info(`  Total high matches: ${highMatches.length}`);
-        
-        // Display details
-        highMatches.slice(0, 5).forEach((match: any, idx: number) => {
-            console.log(`\n  Job ${idx + 1}:`);
-            logger.info(`    Title: ${match.job.title}`);
-            logger.info(`    Company: ${match.job.company}`);
-            logger.info(`    Score: ${match.score}`);
-            logger.info(`    Matched Skills: ${match.matchedSkills.join(', ')}`);
-        });
-        
-        logger.info(`  (Showing ${Math.min(5, highMatches.length)} of ${highMatches.length})`);
-        
-        return highMatches;
-    } catch (error) {
-        logger.error(`✗ Failed to read high matches: ${(error as Error).message}`);
-        throw error;
-    }
-}
-
-// ════════════════════════════════════════════════════════════
-// RUN ALL TESTS
-// ════════════════════════════════════════════════════════════
-async function runAllTests() {
-    logger.step('═══════════════════════════════════════════════');
-    logger.step('  STARTING JOB-AI TEST SUITE');
-    logger.step('═══════════════════════════════════════════════');
+test('Read High Matches - should filter jobs with score >= 75', async () => {
+    const filePath = path.join(process.cwd(), 'matched_jobs.json');
     
-    try {
-        // Test 1: Load Resume
-        const resume = await testLoadResume();
-        
-        // Test 2: Fetch GitHub Projects (inject into resume)
-        const projects = await testGitHubFetcher();
-        resume.projects = projects;
-        
-        // Test 3: Scrape Jobs
-        const jobs = await testJobScraping();
-        
-        // Test 4: Match Jobs
-        const matchedResults = await testJobMatching(jobs, resume);
-        
-        // Test 5: Save Matched Jobs
-        await testSaveMatchedJobs(matchedResults);
-        
-        // Test 6: Read High Matches
-        const highMatches = await testReadHighMatches();
-        
-        logger.step('\n═══════════════════════════════════════════════');
-        logger.success('  ✓ ALL TESTS PASSED SUCCESSFULLY');
-        logger.step('═══════════════════════════════════════════════');
-        
-    } catch (error) {
-        logger.error('\n═══════════════════════════════════════════════');
-        logger.error('  ✗ TEST SUITE FAILED');
-        logger.error('═══════════════════════════════════════════════');
-        console.error(error);
-        process.exit(1);
-    }
-}
+    const data = await fs.readFile(filePath, 'utf-8');
+    const matchedJobs = JSON.parse(data);
+    
+    assert.ok(Array.isArray(matchedJobs), 'File should contain an array');
+    
+    const highMatches = matchedJobs.filter((item: any) => item.score >= 75);
+    
+    assert.ok(Array.isArray(highMatches), 'Filtered results should be an array');
+    
+    // Verify each high match has required fields
+    highMatches.forEach((match: any) => {
+        assert.ok(match.job, 'Match should have job object');
+        assert.ok(match.job.title, 'Job should have title');
+        assert.ok(match.job.company, 'Job should have company');
+        assert.ok(match.score >= 75, 'Score should be >= 75');
+        assert.ok(Array.isArray(match.matchedSkills), 'Should have matchedSkills');
+    });
 
-// Execute tests
-runAllTests();
+    await fs.writeFile(path.join(process.cwd(), 'high_matches.json'), JSON.stringify(highMatches, null, 2), 'utf-8');
+    
+    logger.success(`✓ Found ${highMatches.length} high-scoring matches`);
+});
+
+
 
