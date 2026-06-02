@@ -35,6 +35,7 @@ export interface DailyReportStats {
     jobsMatched: number;
     jobsApplied: number;
     emailsSent: number;
+    note?: string; // Optional note for special cases (e.g., no matches found)
 }
 
 // Your resume structure
