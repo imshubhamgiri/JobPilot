@@ -13,6 +13,8 @@ import { matchJobs } from './modules/matcher';
 import { loadResume } from './modules/resume-reader';
 import { sendDailyReport } from './modules/notifier';
 import config from './config/config';
+import path from 'path/win32';
+import fs from 'fs/promises';
 
 // ─── Core Pipeline ────────────────────────────────────────────
 
@@ -45,9 +47,35 @@ async function runPipeline(): Promise<void> {
     logger.step('Step 3 — Matching Jobs');
     const matches = matchJobs(rawJobs, resume, config);
     const qualified = matches.filter(m => !m.disqualified && m.score >= config.minScore);
-    stats.jobsMatched = qualified.length;
-    logger.success(`${qualified.length} jobs passed threshold (min score: ${config.minScore})`);
+    const rejected   = matches.filter(m => m.disqualified);
+    const lowScore   = matches.filter(m => !m.disqualified && m.score < config.minScore);
 
+    // Save all scraped jobs with scores for transparency
+    const filePath = path.join(process.cwd(), 'matched_jobs.json');
+
+ 
+    const jsonTableData = JSON.stringify(qualified, null, 2);
+   
+    await fs.writeFile(filePath, jsonTableData , 'utf-8')
+    stats.jobsMatched = qualified.length;
+
+    logger.success(`Qualified: ${qualified.length} | Low score: ${lowScore.length} | Blacklisted: ${rejected.length}`);
+
+    //Top matches
+
+    qualified.sort(
+      (a, b)=> b.score - a.score
+    ).slice(0, 5)
+    .forEach(m=>{
+      logger.info(`Top Match: ${m.job.title} at ${m.job.company} | Score: ${m.score} | Matched Skills: ${m.matchedSkills.join(', ')}`);
+    })
+
+    if (qualified.length === 0) {
+      logger.warn('No jobs passed the score threshold — consider lowering minScore in config');
+      await sendDailyReport([], { ...stats, note: 'No jobs passed score threshold' });
+      return;
+    }
+    
     // 4. Apply  [stub for now — applier module comes next]
     logger.step('Step 4 — Applying');
     logger.warn('Applier module not built yet — skipping');
@@ -60,14 +88,22 @@ async function runPipeline(): Promise<void> {
     await sendDailyReport(todaysApps, stats);
 
     // 6. Log run to DB
-    logRun(stats);
+    // logRun(stats);
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     logger.step(`Pipeline Complete in ${elapsed}s`);
 
   } catch (err) {
+    const message = (err as Error).message;
     logger.error(`Pipeline failed: ${(err as Error).message}`);
     console.error(err);
+
+    // Even on failure, try to send a report with what we have
+    try {
+      await sendDailyReport([], { ...stats, note: `Pipeline crashed: ${message}` });
+    } catch {
+      logger.error('Could not send failure notification either');
+    }
   }
 }
 
