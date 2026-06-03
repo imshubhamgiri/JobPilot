@@ -6,7 +6,7 @@
 import 'dotenv/config';
 import cron from 'node-cron';
 import  logger  from './utils/logger';
-import { initDB, logRun, getTodaysApplications } from './modules/db';
+import { initDB, logRun, getTodaysApplications, closeDB } from './modules/db';
 import { getLatestProjects } from './modules/github-fetcher';
 import { scrapeAll } from './modules/scraper';
 import { matchJobs } from './modules/matcher';
@@ -125,11 +125,49 @@ async function main(): Promise<void> {
     logger.info(`Scheduler started — cron: "${config.schedule}"`);
     logger.info('Waiting for next scheduled run... (use --once to run immediately)');
 
-    cron.schedule(config.schedule, async () => {
+    global.cronJob =  cron.schedule(config.schedule, async () => {
       await runPipeline();
     });
   }
 }
+
+async function GracefulShutDown(signal: string): Promise<void> {
+  logger.info(`Graceful shutdown initiated (${signal})`);
+  
+  try {
+    // Set a hard timeout to force exit if cleanup takes too long
+    const forceExitTimer = setTimeout(() => {
+      logger.error('Graceful shutdown timeout — forcing exit');
+      process.exit(1);
+    }, 10000); // 10 second hard limit
+
+    // Stop accepting new cron jobs
+    if (global.cronJob) {
+      global.cronJob.stop();
+      logger.info('Cron scheduler stopped');
+    }
+
+    // Close database connection
+    closeDB();
+
+    logger.info('Cleanup complete');
+
+    clearTimeout(forceExitTimer);
+    logger.success(`Server terminated cleanly (${signal})`);
+    process.exit(0);
+  } catch (error) {
+    logger.error(`Shutdown error: ${(error as Error).message}`);
+    process.exit(1);
+  }
+}
+
+process.on('SIGTERM', () => GracefulShutDown('SIGTERM'));
+process.on('SIGINT', () => GracefulShutDown('SIGINT'));
+
+
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error(`Unhandled Rejection at: ${promise} | reason: ${reason}`);
+});
 
 main().catch(err => {
   logger.error(`Fatal: ${err.message}`);

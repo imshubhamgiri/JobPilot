@@ -35,6 +35,15 @@ export function initDB(): void {
   logger.success('Database initialized');
 }
 
+export function closeDB(): void {
+  try {
+    db.close();
+    logger.success('Database closed');
+  } catch (error) {
+    logger.error(`Error closing database: ${(error as Error).message}`);
+  }
+}
+
 export function hasApplied(jobId: string): boolean {
   const row = db.prepare('SELECT 1 FROM applications WHERE job_id = ?').get(jobId);
   return !!row;
