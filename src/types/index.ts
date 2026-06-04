@@ -1,7 +1,7 @@
 // ============================================================
 // types/index.ts — All shared types for the entire pipeline
 // ============================================================
-
+import cron from 'node-cron';
 export type JobSource = 'internshala' | 'wellfound' | 'remoteok' | 'linkedin' | 'indeed';
 export type ApplicationStatus = 'pending' | 'applied' | 'failed' | 'skipped';
 
@@ -99,3 +99,19 @@ export interface Config {
     projectLimit: number;
   };
 }
+
+declare global {
+  var cronJob: cron.ScheduledTask | undefined; 
+}
+
+declare global{
+  interface Window{
+    chrome :{
+       runtime: Record<string ,any>
+      }
+  }
+}
+
+// declare global{
+//   var window : Window & typeof globalThis;
+// }
