@@ -12,6 +12,10 @@ import logger from '../utils/logger';
 import { MatchResult, Resume } from '../types';
 import { sendDailyReport } from '../modules/notifier';
 import { applyToJobs } from '../modules/applier';
+import { initDB } from '../modules/db';
+
+
+
 
 // ════════════════════════════════════════════════════════════
 // TEST 1: Resume Loading
@@ -161,6 +165,8 @@ import { applyToJobs } from '../modules/applier';
 
 
 test('should apply to jobs', async () => {
+
+    initDB();
     logger.info('Testing applyToJobs with high matches from file');
     let data = await fs.readFile(path.join(process.cwd(), 'high_matches.json'), 'utf-8');
     logger.step('Read high_matches.json file');
