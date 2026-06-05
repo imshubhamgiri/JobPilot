@@ -19,6 +19,6 @@ export async function sendDailyReport(appliedJobs: ApplicationRecord[] , stats: 
  ⏳ *note:* ${stats.note}
  `;
  
-  await bot.telegram.sendMessage(process.env.CHAT_ID as string || '', msg);
+ if(msg)  await bot.telegram.sendMessage(process.env.CHAT_ID as string || '', msg);
   await bot.telegram.sendMessage(process.env.CHAT_ID as string || '', messageTemplate, { parse_mode: 'Markdown' });
 }
