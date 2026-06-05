@@ -22,7 +22,7 @@ function buildUrl(keyword: string): string {
 export async function scrapeInternshala(keywords: string[]): Promise<Job[]> {
   // Launch browser — headless:true means no visible window
   // Set headless:false temporarily if you want to WATCH it work (great for debugging)
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({ headless: false });
   const context = await browser.newContext({
     userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
     // Why? Sites detect bots by user agent. This makes us look like a real Chrome browser.
@@ -79,6 +79,7 @@ export async function scrapeInternshala(keywords: string[]): Promise<Job[]> {
           // querySelector finds the FIRST matching element inside this card
           const title    = card.querySelector('.job-internship-name a')?.textContent?.trim() || '';
           const company  = card.querySelector('.company-name')?.textContent?.trim() || '';
+          const isExclusive = !!card.querySelector('.pro_exclusive_tag'); // Exclusive internships have a special badge
           const location = card.querySelector('.locations a')?.textContent?.trim() || 'Remote';
           const stipend  = card.querySelector('.stipend')?.textContent?.trim() || 'Unpaid';
           const about    = card.querySelector('.about_job .text')?.textContent?.trim() || '';
@@ -98,7 +99,7 @@ export async function scrapeInternshala(keywords: string[]): Promise<Job[]> {
           // Description = about text + skills (gives matcher more text to score against)
           const description = `${about} Skills: ${skills}`;
 
-          return { id, title, company, location, stipend, duration, description, applyLink };
+          return { id, title, company, location, stipend, duration, description, applyLink, isExclusive };
         });
       });
 
@@ -116,6 +117,7 @@ export async function scrapeInternshala(keywords: string[]): Promise<Job[]> {
           stipend:     j.stipend,
           duration:    j.duration,
           postedAt:    new Date(),
+          isExclusive: j.isExclusive,
         }));
 
       logger.success(`  Found ${shaped.length} jobs for "${keyword}"`);
@@ -134,6 +136,7 @@ export async function scrapeInternshala(keywords: string[]): Promise<Job[]> {
   }
 
   // Always close the browser — leaving it open leaks memory
+  await context.close();
   await browser.close();
 
   // Deduplicate — same job might appear for multiple keywords
