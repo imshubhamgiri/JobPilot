@@ -30,72 +30,83 @@ async function loadSession(context: BrowserContext): Promise<void> {
 // No AI — pure rule based for v1
 
 async function answerQuestions(page: any): Promise<void> {
-  // Get all question blocks inside the assessment container
-  const questionBlocks = await page.$$('.questions-container > div');
+  // Use .additional_question — direct class on each question block
+  // More reliable than '.questions-container > div' which selects generic children
+  const questionBlocks = await page.$$('.additional_question');
 
   for (const block of questionBlocks) {
-    // Detect what type of input this question has
 
-    // TYPE 1: Radio buttons (Yes/No questions)
-    const radios = await block.$$('input[type="radio"]');
-    if (radios.length > 0) {
-      // Always click the first radio (usually "Yes")
-      // Covers: "Do you have a laptop?" "Open to full-time?" etc.
-      await radios[0].click();
+    // ── TYPE 1: Radio (Yes/No) ──────────────────────────────
+    // Select first label inside first radio div
+    // We click LABEL not INPUT because input is hidden by CSS
+    // Must await block.$() before calling .click() — it returns a Promise
+    const radioLabel = await block.$('.radio_group .radio:first-child label');
+    if (radioLabel) {
+      await radioLabel.click();
       continue;
     }
 
-    // TYPE 2: Number input ("How many months of experience?")
-    const numberInput = await block.$('input[type="number"], input[placeholder*="numeric"]');
+    // ── TYPE 2: Number input ────────────────────────────────
+    const numberInput = await block.$('input[type="number"]');
     if (numberInput) {
-      // Get the question text to give a smarter answer
       const questionText = await block.$eval(
-        '.question-heading, label, p',
+        'label',
         (el: Element) => el.textContent?.toLowerCase() || ''
       ).catch(() => '');
 
-      // Match keywords → give relevant number
-      let answer = '1'; // safe default
-      if (questionText.includes('experience') || questionText.includes('months')) {
-        answer = '6'; // 6 months experience
-      } else if (questionText.includes('project')) {
-        answer = '3'; // 3 projects
-      } else if (questionText.includes('year')) {
-        answer = '1'; // 1 year
-      }
+      let answer = '6'; // safe default — 6 months
+      if (questionText.includes('year'))                         answer = '1';
+      if (questionText.includes('project'))                      answer = '3';
+      if (questionText.includes('rating') || questionText.includes('scale')) answer = '4';
 
       await numberInput.fill(answer);
       continue;
     }
 
-    // TYPE 3: Textarea ("Share portfolio link", "Cover letter", etc.)
+    // ── TYPE 3: Dropdown (rating scale like 1-5) ───────────
+    // Internshala uses chosen.js — real <select> is display:none
+    // Playwright can't click hidden elements
+    // Solution: set value directly via JS inside the browser, then fire change event
+    const dropdown = await block.$('select.custom_question_range');
+    if (dropdown) {
+      await page.evaluate((el: HTMLSelectElement) => {
+        el.value = '4';
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+      }, dropdown);
+      continue;
+    }
+
+    // ── TYPE 4: Textarea ────────────────────────────────────
     const textarea = await block.$('textarea');
     if (textarea) {
       const questionText = await block.$eval(
-        '.question-heading, label, p',
+        'label',
         (el: Element) => el.textContent?.toLowerCase() || ''
       ).catch(() => '');
 
       let answer = `https://github.com/${process.env.GITHUB_USERNAME}`;
 
-      // If it's asking for cover letter style answer, give a short one
-      if (questionText.includes('cover') || questionText.includes('why') || questionText.includes('yourself')) {
-        answer = `I am a passionate developer with hands-on experience in Node.js, TypeScript, and React. I have built multiple projects which you can view at https://github.com/${process.env.GITHUB_USERNAME}. I am available to join immediately and excited to contribute to your team.`;
+      if (
+        questionText.includes('cover')    ||
+        questionText.includes('why')      ||
+        questionText.includes('yourself') ||
+        questionText.includes('about you')
+      ) {
+        answer = `I am a passionate developer with hands-on experience in Node.js, TypeScript, and React. I have built multiple projects which you can view at https://github.com/${process.env.GITHUB_USERNAME}. I am available to join immediately and excited to contribute.`;
       }
 
       await textarea.fill(answer);
       continue;
     }
 
-    // TYPE 4: Regular text input
+    // ── TYPE 5: Plain text input ────────────────────────────
     const textInput = await block.$('input[type="text"]');
     if (textInput) {
       await textInput.fill(`https://github.com/${process.env.GITHUB_USERNAME}`);
       continue;
     }
 
-    // Unknown type — log and skip, don't crash
-    logger.warn('  Unknown question type — skipping field');
+    logger.warn('  Unknown question type — skipping');
   }
 }
 
@@ -108,10 +119,10 @@ async function applyToJob(
   const { job } = match;
     logger.info('reached here with first job url' , job.applyLink)
   // Check DB — already applied? skip immediately
-  // if (hasApplied(job.id)) {
-  //   logger.info(`  Skipping (already applied): ${job.title} @ ${job.company}`);
-  //   return 'skipped';
-  // }
+  if (hasApplied(job.id)) {
+    logger.info(`  Skipping (already applied): ${job.title} @ ${job.company}`);
+    return 'skipped';
+  }
    logger.info('not applied before')
   try {
     logger.info(`  Applying: ${job.title} @ ${job.company} (score: ${match.score})`);
@@ -141,17 +152,15 @@ async function applyToJob(
     logger.step('  Submitting application form');
     await page.click('#submit');
 
-    const delay = 4000 + Math.random() * 3000; // 4-7 seconds
-    await new Promise(res => setTimeout(res, delay));
-    // Wait for modal to close — that confirms submission went through
-    logger.step('  Closing confirmation modal');
+// Wait for Internshala's JS to finish — detect the post-submit state
+// #continue_container appears ONLY after successful submission
+    await page.waitForSelector('#continue_container', { timeout: 15000 });
+
+    // NOW it's safe to close — DOM is stable
     await page.click('#easy_apply_modal_close');
 
-    logger.info('  Application submitted, waiting for confirmation...');
-    // await page.waitForSelector('#easy_apply_modal', {
-    //   state: 'hidden',
-    //   timeout: 15000
-    // });
+    // Wait for modal to fully disappear
+    await page.waitForSelector('#easy_apply_modal', { state: 'hidden', timeout: 5000 });
 
     // Save to DB
     const record: ApplicationRecord = {
