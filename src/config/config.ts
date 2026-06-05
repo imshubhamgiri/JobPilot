@@ -4,21 +4,23 @@ const config: Config = {
   // --- What roles you're targeting ---
   targetRoles: [
     'backend developement',
-    'full-stack developement',
+    'full stack developement',
     'node.js developement',
     'software engineer',
     'software developer intern',
     'web developer',
+    'software development'
   ],
 
   // --- Your core skills (used for scoring) ---
   requiredSkills: [
+    'mern', 
     'node.js', 'nodejs',
     'typescript', 'javascript',
-    'react', 'express',
+    'react', 'express', 'express.js',
     'mongodb', 'postgresql',
-    'rest api', 'git', 'python' , 
-    'genAI' , 'sql' , 'nextjs' , 'docker',
+    'rest api', 'git', 'python' , 'github', 
+    'genAI' , 'sql' , 'nextjs', 'next.js', 'docker', 'mern'
     
   ],
 
@@ -27,7 +29,7 @@ const config: Config = {
     '5+ years', '7+ years', '10+ years',
     'senior only', 'lead engineer',
     '.net', 'php', 'wordpress', 'drupal',
-    'only for girls',                    // some internshala listings have this
+    'only for girls', 'game developer'                    // some internshala listings have this
   ],
 
   // --- Minimum score to apply (out of 100) ---
