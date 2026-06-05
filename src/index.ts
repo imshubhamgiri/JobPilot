@@ -15,6 +15,7 @@ import { sendDailyReport } from './modules/notifier';
 import config from './config/config';
 import path from 'path/win32';
 import fs from 'fs/promises';
+import { applyToJobs } from './modules/applier';
 
 // ─── Core Pipeline ────────────────────────────────────────────
 
@@ -79,8 +80,8 @@ async function runPipeline(): Promise<void> {
     // 4. Apply  [stub for now — applier module comes next]
     logger.step('Step 4 — Applying');
     logger.warn('Applier module not built yet — skipping');
-    // const applied = await applyToJobs(qualified, resume);
-    // stats.jobsApplied = applied.length;
+    const applied = await applyToJobs(qualified);
+    stats.jobsApplied = applied;
 
     // 5. Send daily report
     logger.step('Step 5 — Sending Report');
