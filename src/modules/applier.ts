@@ -30,6 +30,40 @@ async function loadSession(context: BrowserContext): Promise<void> {
 // No AI — pure rule based for v1
 
 async function answerQuestions(page: any): Promise<void> {
+
+  // 1. Target the element by its unique ID
+  // 1. Check if the Quill editor container exists on the page
+const isCoverLetterAvailable = await page.$('#cover_letter_holder .ql-editor');
+
+if (isCoverLetterAvailable) {
+  logger.info('Cover letter text editor detected. Inputting content...');
+  
+  const applicationText = `Dear Hiring Team,\n\nI am highly excited to apply for the Software Development position. As a full-stack engineer specializing in the MERN stack, TypeScript, and PostgreSQL, I focus on building robust, scalable architectures and writing clean, maintainable code.\n\nWhat excites me most about this role is the opportunity to tackle complex engineering challenges. I love translating product ideas into production-ready software. To demonstrate my capabilities, I recently engineered a high-performance content delivery website and architected a complex browser automation tool designed to streamline web processes and automate job applications. My open-source code and engineering journey are publicly documented on my GitHub profile (https://github.com/imshubhamgiri). I thrive when working with strict typing in TypeScript, optimizing complex relational queries in PostgreSQL, and building reliable automation layers. I am eager to bring this same technical rigor and proactive problem-solving mindset to your development team.\n\nThank you for your time and consideration. I look forward to the possibility of discussing how my backend architectural skills and frontend experience align with your engineering goals.\n\nSincerely,\nShubham Giri`;
+
+  // 1. Instantly inject the text into the Quill editor layer via page.evaluate
+  await page.evaluate((text:string) => {
+    const editor = document.querySelector('#cover_letter_holder .ql-editor');
+    if (editor) {
+      editor.innerHTML = ''; // Clear placeholder
+      text.split('\n\n').forEach(paragraph => {
+        const p = document.createElement('p');
+        p.innerHTML = paragraph.replace(/\n/g, '<br>');
+        editor.appendChild(p);
+      });
+    }
+  }, applicationText);
+
+  // 2. Click the editor container to explicitly focus it
+  await page.click('#cover_letter_holder .ql-editor');
+
+  // 3. Type a single space and a backspace. 
+  // This triggers the site's native 'keydown' and 'input' events, forcing its validation to clear the error!
+  await page.keyboard.press('Space');
+  await page.keyboard.press('Backspace');
+
+  logger.info('Cover letter filled and native validation cleared.');
+}
+
   // Use .additional_question — direct class on each question block
   // More reliable than '.questions-container > div' which selects generic children
   const questionBlocks = await page.$$('.additional_question');
@@ -93,6 +127,8 @@ async function answerQuestions(page: any): Promise<void> {
         questionText.includes('about you')
       ) {
         answer = `I am a passionate developer with hands-on experience in Node.js, TypeScript, and React. I have built multiple projects which you can view at https://github.com/${process.env.GITHUB_USERNAME}. I am available to join immediately and excited to contribute.`;
+      }else if(questionText.includes('live project')) {
+        answer = process.env.LIVE_PROJECT_URL || ``
       }
 
       await textarea.fill(answer);
@@ -129,6 +165,14 @@ async function applyToJob(
 
     // GO — navigate to the job detail page
     await page.goto(job.applyLink, { waitUntil: 'networkidle', timeout: 30000 });
+
+    //Check if already applied
+    const isAlreadyApplied = await page.$eval('.apply_now_btn', (btn: HTMLButtonElement) => btn.disabled).catch(() => false);
+
+    if (isAlreadyApplied) {
+      logger.info(`  Skipping (already applied - detected on page): ${job.title} @ ${job.company}`);
+      return 'skipped';
+    }
 
     // WAIT — make sure Apply button is visible
     await page.waitForSelector('#top_easy_apply_button', { timeout: 10000 });
