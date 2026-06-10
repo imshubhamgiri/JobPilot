@@ -47,7 +47,7 @@ async function runPipeline(): Promise<void> {
     // 3. Match and score
     logger.step('Step 3 — Matching Jobs');
     const matches = matchJobs(rawJobs, resume, config);
-    const qualified = matches.filter(m => !m.disqualified && m.score >= config.minScore);
+    const qualified = matches.filter(m => !m.disqualified && m.score >= config.minScore && !m.job.isExclusive);
     const rejected   = matches.filter(m => m.disqualified);
     const lowScore   = matches.filter(m => !m.disqualified && m.score < config.minScore);
 
@@ -79,7 +79,8 @@ async function runPipeline(): Promise<void> {
     
     // 4. Apply  [stub for now — applier module comes next]
     logger.step('Step 4 — Applying');
-    logger.warn('Applier module not built yet — skipping');
+    // logger.warn('Applier module not built yet — skipping');
+    await fs.writeFile(path.join(process.cwd(),'high_matches.json'), JSON.stringify(qualified, null, 2), 'utf-8');
     const applied = await applyToJobs(qualified);
     stats.jobsApplied = applied;
 
@@ -89,7 +90,7 @@ async function runPipeline(): Promise<void> {
     await sendDailyReport(todaysApps, stats);
 
     // 6. Log run to DB
-    // logRun(stats);
+    logRun(stats);
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     logger.step(`Pipeline Complete in ${elapsed}s`);

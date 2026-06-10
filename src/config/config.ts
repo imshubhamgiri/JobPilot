@@ -3,9 +3,9 @@ import type { Config } from '../types';
 const config: Config = {
   // --- What roles you're targeting ---
   targetRoles: [
-    'backend developement',
-    'full stack developement',
-    'node.js developement',
+    'backend development',
+    'full stack development',
+    'node.js development',
     'software engineer',
     'software developer intern',
     'web developer',
@@ -33,7 +33,7 @@ const config: Config = {
   ],
 
   // --- Minimum score to apply (out of 100) ---
-  minScore: 55,
+  minScore: 70,
 
   // --- Safety cap per run (avoid spam behavior) ---
   maxApplicationsPerRun: 10,
