@@ -15,6 +15,7 @@ export interface Job {
   applyLink: string;
   source: JobSource;
   stipend?: string;
+  isExclusive?: boolean;       // for Internshala — helps prioritize exclusive internships
   duration?: string;           // for internships
   postedAt?: Date;
   hrName?: string;             // filled later by HR finder
@@ -27,6 +28,7 @@ export interface MatchResult {
   score: number;               // 0–100
   matchedSkills: string[];
   disqualified: boolean;
+  isExclusive?: boolean;       // for Internshala — helps prioritize exclusive internships
   disqualifyReason?: string;
 }
 
