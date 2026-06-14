@@ -5,6 +5,8 @@ import type { MatchResult, ApplicationRecord } from '../types';
 import  logger  from '../utils/logger';
 import { hasApplied, saveApplication, updateStatus } from './db';
 import config from '../config/config';
+import { FatalError, RecoverableError, SkipableError } from '../utils/errors';
+import { sendDailyReport } from './notifier';
 
 const SESSION_PATH = path.join(process.cwd(), 'src/data/session.json');
 
@@ -143,6 +145,7 @@ if (isCoverLetterAvailable) {
     }
 
     logger.warn('  Unknown question type — skipping');
+    throw new SkipableError('Unknown question type — cannot answer automatically');
   }
 }
 
@@ -151,31 +154,33 @@ if (isCoverLetterAvailable) {
 async function applyToJob(
   page: any,
   match: MatchResult
-): Promise<'applied' | 'failed' | 'skipped'> {
+): Promise<void> {
   const { job } = match;
     logger.info('reached here with first job url' , job.applyLink)
   // Check DB — already applied? skip immediately
   if (hasApplied(job.id)) {
-    logger.info(`  Skipping (already applied): ${job.title} @ ${job.company}`);
-    return 'skipped';
+    throw new SkipableError("Already applied (checked in DB)");
   }
    logger.info('not applied before')
   try {
     logger.info(`  Applying: ${job.title} @ ${job.company} (score: ${match.score})`);
 
     // GO — navigate to the job detail page
-    await page.goto(job.applyLink, { waitUntil: 'networkidle', timeout: 30000 });
+    await page.goto(job.applyLink, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
     //Check if already applied
     const isAlreadyApplied = await page.$eval('.apply_now_btn', (btn: HTMLButtonElement) => btn.disabled).catch(() => false);
 
     if (isAlreadyApplied) {
-      logger.info(`  Skipping (already applied - detected on page): ${job.title} @ ${job.company}`);
-      return 'skipped';
+      throw new SkipableError("Already applied (detected on page)");
     }
 
-    // WAIT — make sure Apply button is visible
-    await page.waitForSelector('#top_easy_apply_button', { timeout: 10000 });
+    try {
+      await page.waitForSelector('#top_easy_apply_button', { timeout: 10000 });
+    } catch (err) {
+      // Playwright timeout → wrap as RecoverableError
+      throw new RecoverableError("Timeout waiting for apply button");
+    }
 
     // CLICK — open the modal
     await page.click('#top_easy_apply_button');
@@ -220,12 +225,12 @@ async function applyToJob(
     saveApplication(record);
 
     logger.success(`  Applied: ${job.title} @ ${job.company}`);
-    return 'applied';
-
   } catch (err) {
-    logger.error(`  Failed: ${job.title} @ ${job.company} — ${(err as Error).message}`);
-    updateStatus(job.id, 'failed');
-    return 'failed';
+    if (err instanceof SkipableError || err instanceof RecoverableError || err instanceof FatalError) {
+      throw err; // bubble up custom errors
+    }
+    // Unexpected → treat as fatal
+    throw new FatalError(`Unexpected error: ${(err as Error).message}`);
   }
 }
 
@@ -256,10 +261,48 @@ export async function applyToJobs(matches: MatchResult[]): Promise<number> {
   logger.info(`Applying to ${toApply.length} jobs (cap: ${config.maxApplicationsPerRun})`);
   let count =1;
   for (const match of toApply) {
-    logger.info('applying to job :' , count)
-    const result = await applyToJob(page, match);
-    count++;
-    if (result === 'applied') appliedCount++;
+    try {
+    await applyToJob(page, match);
+    appliedCount++;
+  } catch (err) {
+    if (err instanceof SkipableError) {
+      logger.warn(`Skipped: ${match.job.title} @ ${match.job.company} — ${err.message}`);
+      continue;
+    }
+    if (err instanceof RecoverableError) {
+      logger.error(`Recoverable error: ${match.job.title} @ ${match.job.company} — ${err.message}`);
+      // Retry wrapper
+      let success = false;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        logger.info(`Retrying (${attempt}/3)...`);
+        try {
+          await applyToJob(page, match);
+          appliedCount++;
+          success = true;
+          break;
+        } catch (retryErr) {
+          if (!(retryErr instanceof RecoverableError)) throw retryErr; // bubble up skip/fatal
+        }
+      }
+      if (!success) {
+        logger.error(`Failed after retries: ${match.job.title} @ ${match.job.company}`);
+        updateStatus(match.job.id, 'failed');
+      }
+    }
+    if (err instanceof FatalError) {
+
+      const stats = {
+        jobsScraped: matches.length,
+        jobsMatched: matches.length,
+        jobsApplied: appliedCount,
+        emailsSent: 0,
+        note: `Fatal error: ${err.message}`,
+
+      }
+      await sendDailyReport([], stats);
+      process.exit(1);
+    }
+  }
 
     // Delay between applications — human-like behavior
     // Longer than scraper delay — we're actually submitting forms
