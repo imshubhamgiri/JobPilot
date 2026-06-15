@@ -38,33 +38,48 @@ JobPilot is engineered for robustness and scalability, built on a modern Node.js
 
 ### Tech Stack
 
-| Technology         | Purpose                                          | Key Benefit                                     |
-| :----------------- | :----------------------------------------------- | :---------------------------------------------- |
-| **Node.js**        | JavaScript runtime environment                   | High performance, asynchronous I/O, vast ecosystem |
-| **TypeScript**     | Superset of JavaScript with type safety          | Enhanced code quality, maintainability, scalability |
-| **Cheerio**        | Fast, flexible, and lean implementation of core jQuery for the server | Efficient HTML parsing for web scraping       |
-| **Axios**          | Promise-based HTTP client                        | Simplified HTTP requests for external APIs      |
-| **Telegram Bot API** | Notification and reporting service               | Real-time, secure, and accessible updates       |
-| **Dotenv**         | Loads environment variables from a `.env` file   | Secure configuration management                 |
+| Technology | Purpose | Key Benefit |
+| :--- | :--- | :--- |
+| **Node.js** | JavaScript runtime environment | High performance, asynchronous I/O, vast ecosystem |
+| **TypeScript** | Superset of JavaScript with type safety | Enhanced code quality, maintainability, and scalability |
+| **Playwright** | Browser automation engine | Programmatically interacts with live pages, clicks buttons, and auto-fills dynamic forms |
+| **Better-SQLite3** | Local relational database | High performance, zero-configuration storage to track and prevent duplicate applications |
+| **Telegraf** | Telegram Bot API framework | Delivers real-time, secure application updates directly to your phone |
+| **Nodemailer** | Email delivery client | Sends structured, detailed daily performance and application status logs |
+| **Node-Cron** | Task scheduler | Automates job runs at regular intervals without user intervention |
 
-### Directory Structure
+---
 
-```
+## Directory Structure
+
+```text
 JobPilot/
-├── .gitignore
-├── package-lock.json
-├── package.json
+├── data/
+│   ├── applied.db          # SQLite database tracking applied jobs
+│   └── resume.json         # User profile and resume data mapping
 ├── src/
-│   ├── config/             # Configuration files and environment settings
-│   ├── core/               # Core application logic, utility functions
-│   ├── scrapers/           # Modules for scraping various job boards
-│   ├── matchers/           # Logic for scoring job matches and criteria
-│   ├── autofill/           # Modules for form auto-filling capabilities
-│   ├── reporters/          # Services for sending reports (e.g., Telegram)
+│   ├── config/
+│   │   └── config.ts       # Configuration files and environment settings
+│   ├── modules/
+│   │   └── scraper/
+│   │       ├── index.ts    # Scraper module entry point
+│   │       └── internshala.ts # Internshala specific scraping logic
+│   ├── applier.ts          # Module for automated job applications / form-filling
+│   ├── db.ts               # Database connection and lifecycle management
+│   ├── github-fetcher.ts   # Module to fetch developer profile/repo data
+│   ├── index.ts            # Main application entry point
+│   ├── matcher.ts          # Core logic for profile matching and scoring
+│   ├── notifier.ts         # Telegram bot and email notification service
+│   ├── resume-reader.ts    # Utility to parse and read resume data
+│   ├── scripts/
+│   │   └── session-saver.ts # Utility to manage and persist browser login sessions
+│   ├── tests/              # Unit and integration tests
 │   ├── types/              # TypeScript type definitions and interfaces
-│   └── index.ts            # Main application entry point
+│   └── utils/
+│       └── logger.ts       # Centralized beautiful logging (powered by Chalk)
+├── .gitignore
+├── package.json
 └── tsconfig.json
-```
 
 ---
 
