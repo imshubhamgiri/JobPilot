@@ -209,7 +209,11 @@ async function applyToJob(
     await page.click('#easy_apply_modal_close');
 
     // Wait for modal to fully disappear
-    await page.waitForSelector('#easy_apply_modal', { state: 'hidden', timeout: 5000 });
+    try {
+      await page.waitForSelector('#easy_apply_modal', { state: 'hidden', timeout: 5000 });  
+    } catch (error) {
+      logger.warn('Modal did not close as expected, but application was submitted. Proceeding anyway.');
+    }
 
     // Save to DB
     const record: ApplicationRecord = {
@@ -229,6 +233,9 @@ async function applyToJob(
     if (err instanceof SkipableError || err instanceof RecoverableError || err instanceof FatalError) {
       throw err; // bubble up custom errors
     }
+    // if((err as Error).message === 'Timeout'){
+    //   throw new RecoverableError("Page load timeout — possible network issue or site slowdown");
+    // }
     // Unexpected → treat as fatal
     throw new FatalError(`Unexpected error: ${(err as Error).message}`);
   }
@@ -299,6 +306,7 @@ export async function applyToJobs(matches: MatchResult[]): Promise<number> {
         note: `Fatal error: ${err.message}`,
 
       }
+      logger.error(`Fatal error: ${err.message} — aborting application process`);
       await sendDailyReport([], stats);
       process.exit(1);
     }
