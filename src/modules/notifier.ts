@@ -1,5 +1,6 @@
 import { Telegraf } from 'telegraf';
 import { ApplicationRecord, DailyReportStats  } from '../types';
+import logger from '../utils/logger';
 const bot = new Telegraf(process.env.TELEGRAM_TOKEN as string || '');
 
 
@@ -9,16 +10,19 @@ export async function sendDailyReport(appliedJobs: ApplicationRecord[] , stats: 
   let msg = appliedJobs.map(j =>
     `✅ ${j.title} @ ${j.company}`
   ).join('\n');
-
-  messageTemplate = `
- 📊 *Daily Job Report Stats* (${stats.jobsScraped})
- ￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣
- 📝 *Total Applied:* ${stats.jobsApplied}
- 📅 *Emails Sent:* ${stats.emailsSent}
- -> *MatchedJobs:* ${stats.jobsMatched}
- ⏳ *note:* ${stats.note}
- `;
- 
- if(msg)  await bot.telegram.sendMessage(process.env.CHAT_ID as string || '', msg);
-  await bot.telegram.sendMessage(process.env.CHAT_ID as string || '', messageTemplate, { parse_mode: 'Markdown' });
+  try {
+    messageTemplate = `
+   📊 *Daily Job Report Stats* (${stats.jobsScraped})
+   ￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣
+   📝 *Total Applied:* ${stats.jobsApplied}
+   📅 *Emails Sent:* ${stats.emailsSent}
+   -> *MatchedJobs:* ${stats.jobsMatched}
+   ⏳ *note:* ${stats.note}
+   `;
+  if(msg)  await bot.telegram.sendMessage(process.env.CHAT_ID as string || '', msg);
+   await bot.telegram.sendMessage(process.env.CHAT_ID as string || '', messageTemplate, { parse_mode:'Markdown' });
+    
+  } catch (error) {
+  logger.warn('Error sending message :' ,(error as Error).message);
+  }
 }
